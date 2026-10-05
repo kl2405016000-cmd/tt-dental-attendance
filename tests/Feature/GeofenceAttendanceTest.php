@@ -79,7 +79,7 @@ class GeofenceAttendanceTest extends TestCase
         $response->assertJson([
             'success' => false,
         ]);
-        $this->assertStringContainsString('outside the workplace boundary', $response->json('message'));
+        $this->assertStringContainsString('Outside Allowed Location', $response->json('message'));
 
         $this->assertDatabaseMissing('attendances', [
             'employee_id' => $employee->id,
@@ -167,7 +167,7 @@ class GeofenceAttendanceTest extends TestCase
             'status' => 'Present',
         ]);
 
-        // Attempt break start outside workplace
+        // Attempt break start outside allowed location
         $outsideLat = 3.150000;
         $outsideLng = 101.686900;
 
@@ -178,7 +178,7 @@ class GeofenceAttendanceTest extends TestCase
         ]);
 
         $response->assertStatus(403);
-        $this->assertStringContainsString('outside the workplace boundary', $response->json('message'));
+        $this->assertStringContainsString('Outside Allowed Location', $response->json('message'));
 
         $att = Attendance::where('employee_id', $employee->id)->first();
         $this->assertNull($att->break_start);
@@ -267,7 +267,7 @@ class GeofenceAttendanceTest extends TestCase
         ]);
 
         $response->assertStatus(403);
-        $this->assertStringContainsString('outside the workplace boundary', $response->json('message'));
+        $this->assertStringContainsString('Outside Allowed Location', $response->json('message'));
 
         $att = Attendance::where('employee_id', $employee->id)->first();
         $this->assertNull($att->break_end);
@@ -357,7 +357,7 @@ class GeofenceAttendanceTest extends TestCase
         ]);
 
         $response->assertStatus(403);
-        $this->assertStringContainsString('outside the workplace boundary', $response->json('message'));
+        $this->assertStringContainsString('Outside Allowed Location', $response->json('message'));
 
         $att = Attendance::where('employee_id', $employee->id)->first();
         $this->assertNull($att->clock_out);
@@ -503,5 +503,162 @@ class GeofenceAttendanceTest extends TestCase
         ]);
         $responseLng->assertStatus(403);
         $this->assertStringContainsString('Invalid GPS coordinates provided', $responseLng->json('message'));
+    }
+
+    // =========================================================================
+    // 7. MULTI-LOCATION GEOFENCE SCENARIOS (A, B, C, D, E, F)
+    // =========================================================================
+
+    public function test_scenario_a_user_inside_workplace_attendance_allowed(): void
+    {
+        [$user, $employee] = $this->createStaffWithEmployee();
+
+        // Location 1: Workplace (Shop Apartment, Jalan Orkid 4, Cheras: 3.0783092, 101.7664661)
+        Setting::setVal('location_1_lat', '3.0783092');
+        Setting::setVal('location_1_lng', '101.7664661');
+        Setting::setVal('location_1_radius', '500');
+
+        $response = $this->actingAs($user)->postJson(route('attendance.clockIn'), [
+            'employee_id' => $employee->id,
+            'lat' => 3.0783100,
+            'lng' => 101.7664670,
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+        $this->assertDatabaseHas('attendances', [
+            'employee_id' => $employee->id,
+            'status' => 'Present',
+        ]);
+    }
+
+    public function test_scenario_b_user_inside_home_demo_attendance_allowed(): void
+    {
+        [$user, $employee] = $this->createStaffWithEmployee();
+
+        // Location 2: Home / Demo (The Sky Residensi, Shamelin: 3.1247527, 101.7374223)
+        Setting::setVal('location_2_lat', '3.1247527');
+        Setting::setVal('location_2_lng', '101.7374223');
+        Setting::setVal('location_2_radius', '500');
+
+        $response = $this->actingAs($user)->postJson(route('attendance.clockIn'), [
+            'employee_id' => $employee->id,
+            'lat' => 3.1247500,
+            'lng' => 101.7374200,
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+        $this->assertDatabaseHas('attendances', [
+            'employee_id' => $employee->id,
+            'status' => 'Present',
+        ]);
+    }
+
+    public function test_scenario_c_user_inside_college_demo_attendance_allowed(): void
+    {
+        [$user, $employee] = $this->createStaffWithEmployee();
+
+        // Location 3: College / Demo (UPTM: 3.1276441, 101.7373364)
+        Setting::setVal('location_3_lat', '3.1276441');
+        Setting::setVal('location_3_lng', '101.7373364');
+        Setting::setVal('location_3_radius', '500');
+
+        $response = $this->actingAs($user)->postJson(route('attendance.clockIn'), [
+            'employee_id' => $employee->id,
+            'lat' => 3.1276400,
+            'lng' => 101.7373300,
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+        $this->assertDatabaseHas('attendances', [
+            'employee_id' => $employee->id,
+            'status' => 'Present',
+        ]);
+    }
+
+    public function test_scenario_d_user_outside_all_three_attendance_blocked(): void
+    {
+        [$user, $employee] = $this->createStaffWithEmployee();
+
+        // Ensure all three locations are active with 500m radius
+        Setting::setVal('location_1_lat', '3.0783092');
+        Setting::setVal('location_1_lng', '101.7664661');
+        Setting::setVal('location_1_radius', '500');
+
+        Setting::setVal('location_2_lat', '3.1247527');
+        Setting::setVal('location_2_lng', '101.7374223');
+        Setting::setVal('location_2_radius', '500');
+
+        Setting::setVal('location_3_lat', '3.1276441');
+        Setting::setVal('location_3_lng', '101.7373364');
+        Setting::setVal('location_3_radius', '500');
+
+        // Far location (~10km away in Petaling Jaya)
+        $response = $this->actingAs($user)->postJson(route('attendance.clockIn'), [
+            'employee_id' => $employee->id,
+            'lat' => 3.100000,
+            'lng' => 101.600000,
+        ]);
+
+        $response->assertStatus(403);
+        $response->assertJson(['success' => false]);
+        $this->assertStringContainsString('Outside Allowed Location', $response->json('message'));
+        $this->assertDatabaseMissing('attendances', [
+            'employee_id' => $employee->id,
+        ]);
+    }
+
+    public function test_scenario_e_staff_cannot_access_another_employee_attendance(): void
+    {
+        [$userA, $employeeA] = $this->createStaffWithEmployee();
+
+        $userB = User::factory()->create([
+            'name' => 'Bob Lee',
+            'email' => 'bob@ttdental.com',
+            'role' => 'staff',
+        ]);
+        $employeeB = Employee::create([
+            'user_id' => $userB->id,
+            'employee_id' => 'EMP-020',
+            'name' => 'Bob Lee',
+            'email' => 'bob@ttdental.com',
+            'position' => 'Dental Assistant',
+            'status' => true,
+        ]);
+
+        // User A attempts to clock in for Employee B
+        $response = $this->actingAs($userA)->postJson(route('attendance.clockIn'), [
+            'employee_id' => $employeeB->id,
+            'lat' => 3.139015,
+            'lng' => 101.686915,
+        ]);
+
+        $response->assertStatus(403);
+        $this->assertStringContainsString('Unauthorized attendance access for this employee', $response->json('message'));
+        $this->assertDatabaseMissing('attendances', [
+            'employee_id' => $employeeB->id,
+        ]);
+    }
+
+    public function test_scenario_f_admin_staff_role_separation_remains_unchanged(): void
+    {
+        $admin = $this->createAdmin();
+        [$staff, $employee] = $this->createStaffWithEmployee();
+
+        // 1. Admin can access admin dashboard and settings
+        $this->actingAs($admin)->get(route('admin.dashboard'))->assertStatus(200);
+        $this->actingAs($admin)->get(route('settings.index'))->assertStatus(200);
+
+        // 2. Staff is blocked from admin dashboard and redirected/forbidden
+        $staffDashRes = $this->actingAs($staff)->get(route('admin.dashboard'));
+        $this->assertTrue($staffDashRes->isRedirect() || $staffDashRes->status() === 403);
+
+        $staffSettingsRes = $this->actingAs($staff)->get(route('settings.index'));
+        $this->assertTrue($staffSettingsRes->isRedirect() || $staffSettingsRes->status() === 403);
+
+        // 3. Staff can access staff dashboard
+        $this->actingAs($staff)->get(route('staff.dashboard'))->assertStatus(200);
     }
 }

@@ -24,57 +24,29 @@ class AttendanceController extends Controller
         return true;
     }
 
-    protected function getLocationError(Request $request): ?string
+    protected function getLocationValidation(Request $request): array
     {
         // Allow Admin manual attendance override from the web portal
         if (\Illuminate\Support\Facades\Auth::check() && \Illuminate\Support\Facades\Auth::user()->isAdmin() && !$request->expectsJson()) {
-            return null;
-        }
-
-        $workplaceLat = (float) \App\Models\Setting::getVal('workplace_lat', 0);
-        $workplaceLng = (float) \App\Models\Setting::getVal('workplace_lng', 0);
-        $radius = (float) \App\Models\Setting::getVal('workplace_radius', 0);
-
-        // FAIL CLOSED: If workplace coordinates or radius are missing, invalid, or zero
-        if ($workplaceLat == 0.0 || $workplaceLng == 0.0 || $radius <= 0.0) {
-            return 'Workplace GPS geofence is not configured. Please contact the administrator to set the laboratory coordinates.';
+            return [
+                'valid' => true,
+                'error' => null,
+                'matched_location' => ['name' => 'Admin Override', 'distance' => 0, 'radius' => 0],
+                'nearest_location' => null,
+                'distances' => [],
+            ];
         }
 
         $lat = $request->input('lat');
         $lng = $request->input('lng');
 
-        // Check if GPS coordinates are provided and numeric
-        if ($lat === null || $lng === null || $lat === '' || $lng === '' || !is_numeric($lat) || !is_numeric($lng)) {
-            return 'GPS location permission is required. Attendance cannot be recorded without verified workplace location.';
-        }
+        return \App\Services\GeolocationService::validateLocation($lat, $lng);
+    }
 
-        $lat = (float) $lat;
-        $lng = (float) $lng;
-
-        // Validate incoming latitude and longitude ranges (-90 to 90 for lat, -180 to 180 for lng)
-        if ($lat < -90.0 || $lat > 90.0 || $lng < -180.0 || $lng > 180.0) {
-            return 'Invalid GPS coordinates provided. Latitude must be between -90 and 90, and longitude between -180 and 180.';
-        }
-
-        $earthRadius = 6371000;
-        $latFrom = deg2rad($workplaceLat);
-        $lonFrom = deg2rad($workplaceLng);
-        $latTo = deg2rad($lat);
-        $lonTo = deg2rad($lng);
-
-        $latDelta = $latTo - $latFrom;
-        $lonDelta = $lonTo - $lonFrom;
-
-        $angle = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) + cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
-        $distance = $angle * $earthRadius;
-
-        if ($distance > $radius) {
-            $distRounded = round($distance);
-            $radiusRounded = round($radius);
-            return "You are outside the workplace boundary ({$distRounded}m away, max allowed: {$radiusRounded}m). Attendance is not allowed.";
-        }
-
-        return null;
+    protected function getLocationError(Request $request): ?string
+    {
+        $validation = $this->getLocationValidation($request);
+        return $validation['error'];
     }
 
     protected function validateLocation(Request $request): bool

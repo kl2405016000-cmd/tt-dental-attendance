@@ -16,6 +16,22 @@ class Setting extends Model
 
     public static function setVal($key, $value)
     {
-        return self::updateOrCreate(['key' => $key], ['value' => $value]);
+        $setting = self::updateOrCreate(['key' => $key], ['value' => $value]);
+
+        if ($key === 'workplace_lat') {
+            self::updateOrCreate(['key' => 'location_1_lat'], ['value' => $value]);
+        } elseif ($key === 'workplace_lng') {
+            self::updateOrCreate(['key' => 'location_1_lng'], ['value' => $value]);
+        } elseif ($key === 'workplace_radius') {
+            self::updateOrCreate(['key' => 'location_1_radius'], ['value' => $value]);
+        } elseif ($key === 'location_1_lat') {
+            self::updateOrCreate(['key' => 'workplace_lat'], ['value' => $value]);
+        } elseif ($key === 'location_1_lng') {
+            self::updateOrCreate(['key' => 'workplace_lng'], ['value' => $value]);
+        } elseif ($key === 'location_1_radius') {
+            self::updateOrCreate(['key' => 'workplace_radius'], ['value' => $value]);
+        }
+
+        return $setting;
     }
 }

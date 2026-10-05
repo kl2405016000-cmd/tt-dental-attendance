@@ -24,6 +24,22 @@ class FaceVerificationController extends Controller
             'face_descriptor' => 'required|string',
         ]);
 
+        $locationValidation = null;
+        if ($request->has('lat') || $request->has('lng') || !empty(\App\Services\GeolocationService::getActiveLocations())) {
+            $locationValidation = \App\Services\GeolocationService::validateLocation(
+                $request->input('lat'),
+                $request->input('lng')
+            );
+
+            if (!$locationValidation['valid']) {
+                return response()->json([
+                    'success' => false,
+                    'matched' => false,
+                    'message' => $locationValidation['error'],
+                ], 403);
+            }
+        }
+
 
         /*
         |--------------------------------------------------------------------------
@@ -361,6 +377,16 @@ class FaceVerificationController extends Controller
 
             'threshold' =>
                 $threshold,
+
+            'verified_location' =>
+                $locationValidation && $locationValidation['valid'] && $locationValidation['matched_location']
+                    ? $locationValidation['matched_location']['name']
+                    : null,
+
+            'location_details' =>
+                $locationValidation && $locationValidation['valid']
+                    ? $locationValidation['matched_location']
+                    : null,
 
         ]);
     }

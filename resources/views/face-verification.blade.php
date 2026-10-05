@@ -477,14 +477,20 @@ verifyButton.addEventListener('click', async function() {
     setStatus('🔍 Verifying identity...', ''); setFaceCount('Comparing face data with registered employees...');
     try {
         const descriptor = JSON.stringify(Array.from(latestDescriptor));
-        const r = await fetch('/face-verification/verify', { method: 'POST', headers: { 'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':'{{ csrf_token() }}','X-Requested-With':'XMLHttpRequest' }, body: JSON.stringify({ face_descriptor: descriptor }) });
+        const verifyPayload = { face_descriptor: descriptor };
+        if (currentLat !== null && currentLng !== null) {
+            verifyPayload.lat = currentLat;
+            verifyPayload.lng = currentLng;
+        }
+        const r = await fetch('/face-verification/verify', { method: 'POST', headers: { 'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':'{{ csrf_token() }}','X-Requested-With':'XMLHttpRequest' }, body: JSON.stringify(verifyPayload) });
         const responseText = await r.text();
         let data;
         try { data = JSON.parse(responseText); } catch(je) { throw new Error('Invalid server response. HTTP: ' + r.status); }
         if (!r.ok) throw new Error(data.message || 'Server error. HTTP: ' + r.status);
         if (data.success && data.matched) {
-            setStatus('✓ Identity Verified Successfully', 'success');
-            setFaceCount('Biometric match confirmed. Select an action below.');
+            const locName = data.verified_location || verifiedLocationName || '';
+            setStatus(locName ? '✓ Location Verified — ' + locName : '✓ Identity Verified Successfully', 'success');
+            setFaceCount('Biometric match confirmed' + (locName ? ' at ' + locName : '') + '. Select an action below.');
             const initials = data.employee.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
             empAvatar.textContent = initials;
             empName.textContent = data.employee.name;
@@ -635,10 +641,8 @@ endBreakButton.addEventListener('click', async function() {
 
 startButton.addEventListener('click', startCamera);
 
-// Geolocation Check
-const workplaceLat = {{ \App\Models\Setting::getVal('workplace_lat', 0) ?: '0' }};
-const workplaceLng = {{ \App\Models\Setting::getVal('workplace_lng', 0) ?: '0' }};
-const workplaceRadius = {{ \App\Models\Setting::getVal('workplace_radius', 100) ?: '100' }};
+// Geolocation Check — Multi-Location Validation (Workplace, Home/Demo, College/Demo)
+const allowedLocations = @json(\App\Services\GeolocationService::getActiveLocations());
 
 function getDistance(lat1, lon1, lat2, lon2) {
     const R = 6371e3;
@@ -655,25 +659,51 @@ function getDistance(lat1, lon1, lat2, lon2) {
 
 let currentLat = null;
 let currentLng = null;
+let verifiedLocationName = null;
 
-if (workplaceLat && workplaceLng && workplaceLat != 0) {
+if (allowedLocations && allowedLocations.length > 0) {
     startButton.disabled = true;
-    setStatus('Checking workplace location...', '');
-    setFaceCount('Please allow location access to continue.');
+    setStatus('Checking allowed locations...', '');
+    setFaceCount('Please allow GPS location access to verify your attendance area.');
     
     if ("geolocation" in navigator) {
         navigator.geolocation.getCurrentPosition(function(position) {
-            const dist = getDistance(position.coords.latitude, position.coords.longitude, workplaceLat, workplaceLng);
-            if (dist <= workplaceRadius) {
-                currentLat = position.coords.latitude;
-                currentLng = position.coords.longitude;
+            currentLat = position.coords.latitude;
+            currentLng = position.coords.longitude;
+
+            let validLocation = null;
+            let nearestLocation = null;
+            let minDistance = Infinity;
+            let distanceLines = [];
+
+            for (const loc of allowedLocations) {
+                const dist = getDistance(currentLat, currentLng, loc.lat, loc.lng);
+                const isInside = dist <= loc.radius;
+                distanceLines.push('• ' + loc.name + ': ' + Math.round(dist) + 'm (Radius: ' + loc.radius + 'm)' + (isInside ? ' [INSIDE]' : ''));
+
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    nearestLocation = { ...loc, distance: dist };
+                }
+
+                if (isInside && !validLocation) {
+                    validLocation = { ...loc, distance: dist };
+                }
+            }
+
+            if (validLocation) {
+                verifiedLocationName = validLocation.name;
                 setStatus('✓ Location Verified', 'success');
-                setFaceCount('You are within the approved workplace area. Starting models...');
+                setFaceCount('Location Verified: ' + validLocation.name + ' (' + Math.round(validLocation.distance) + 'm away, allowed: ' + validLocation.radius + 'm). Ready for face scan.');
+                showDebug('✓ Location Verified: ' + validLocation.name + '\n' + distanceLines.join('\n'));
                 loadFaceModels(); // load models only if valid
             } else {
-                setStatus('✗ Outside Workplace', 'error');
-                setFaceCount('You are outside the workplace area (' + Math.round(dist) + 'm away, max allowed: ' + workplaceRadius + 'm). Attendance is not allowed.');
-                showDebug('Distance: ' + Math.round(dist) + 'm, Max Allowed: ' + workplaceRadius + 'm');
+                const nearestDist = Math.round(minDistance);
+                const nearestRad = nearestLocation ? Math.round(nearestLocation.radius) : 500;
+                const nearestName = nearestLocation ? nearestLocation.name : 'Workplace';
+                setStatus('✗ Outside Allowed Location', 'error');
+                setFaceCount('Outside Allowed Location: You are outside all allowed locations (Nearest: ' + nearestName + ', ' + nearestDist + 'm away, max allowed: ' + nearestRad + 'm). Attendance is not allowed.');
+                showDebug('✗ GPS Outside All Allowed Locations:\n' + distanceLines.join('\n'));
             }
         }, function(error) {
             let errorMsg = 'Location permission denied or cannot be verified.';

@@ -1647,9 +1647,7 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const workplaceLat = {{ \App\Models\Setting::getVal('workplace_lat', 0) ?: '0' }};
-    const workplaceLng = {{ \App\Models\Setting::getVal('workplace_lng', 0) ?: '0' }};
-    const workplaceRadius = {{ \App\Models\Setting::getVal('workplace_radius', 100) ?: '100' }};
+    const allowedLocations = @json(\App\Services\GeolocationService::getActiveLocations());
 
     function getDistance(lat1, lon1, lat2, lon2) {
         const R = 6371e3;
@@ -1664,7 +1662,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return R * c;
     }
 
-    if (workplaceLat && workplaceLng && workplaceLat != 0) {
+    if (allowedLocations && allowedLocations.length > 0) {
         const actionBtns = document.querySelectorAll('.modern-action-btn');
         const msgDiv = document.getElementById('locationMsg');
         const msgSpan = msgDiv ? msgDiv.querySelector('span') : null;
@@ -1677,13 +1675,32 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if ("geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition(function(position) {
-                    const dist = getDistance(position.coords.latitude, position.coords.longitude, workplaceLat, workplaceLng);
-                    if (dist <= workplaceRadius) {
-                        // Valid location within workplace radius
+                    const userLat = position.coords.latitude;
+                    const userLng = position.coords.longitude;
+                    let validLocation = null;
+                    let nearestLocation = null;
+                    let minDistance = Infinity;
+
+                    for (const loc of allowedLocations) {
+                        const dist = getDistance(userLat, userLng, loc.lat, loc.lng);
+                        if (dist <= loc.radius && !validLocation) {
+                            validLocation = { ...loc, distance: dist };
+                        }
+                        if (dist < minDistance) {
+                            minDistance = dist;
+                            nearestLocation = { ...loc, distance: dist };
+                        }
+                    }
+
+                    if (validLocation) {
+                        // Valid location within approved boundary
                         msgDiv.style.display = 'none';
                         actionBtns.forEach((btn, idx) => { btn.disabled = originalStates[idx]; });
                     } else {
-                        msgSpan.innerText = "You are outside the TT Dental workplace boundary (" + Math.round(dist) + "m away, max allowed: " + workplaceRadius + "m). Attendance actions are restricted.";
+                        const nearestDist = Math.round(minDistance);
+                        const nearestRad = nearestLocation ? Math.round(nearestLocation.radius) : 500;
+                        const nearestName = nearestLocation ? nearestLocation.name : 'Workplace';
+                        msgSpan.innerText = "Outside Allowed Location: You are outside all approved attendance locations (Nearest: " + nearestName + ", " + nearestDist + "m away, max allowed: " + nearestRad + "m). Attendance actions are restricted.";
                     }
                 }, function(error) {
                     if (error.code === 1) {
@@ -1693,7 +1710,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else if (error.code === 3) {
                         msgSpan.innerText = "Location check timed out. Please refresh.";
                     } else {
-                        msgSpan.innerText = "Location cannot be verified. Workplace attendance restricted.";
+                        msgSpan.innerText = "Location cannot be verified. Attendance restricted.";
                     }
                 }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
             } else {

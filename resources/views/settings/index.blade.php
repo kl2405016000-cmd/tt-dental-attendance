@@ -82,29 +82,108 @@
         </form>
     </div>
 
-    {{-- Workplace Location & Geofence --}}
+    {{-- Allowed Geolocation Locations (Multi-Location Geofence) --}}
     <div class="card">
         <form action="{{ route('settings.update') }}" method="POST">
             @csrf
             <div class="card-header" style="border-bottom:1px solid #f1f5f9; padding-bottom:15px; margin-bottom:15px;">
                 <div>
-                    <div class="card-title">Workplace Location & Geofence</div>
-                    <div class="card-subtitle">Restrict staff attendance actions by location</div>
+                    <div class="card-title">Allowed Geolocation Locations (3 Locations)</div>
+                    <div class="card-subtitle">Attendance is valid when staff is inside ANY of these 3 locations (Default radius: 500m)</div>
                 </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Workplace Latitude</label>
-                <input type="text" name="workplace_lat" class="form-input" value="{{ $settings['workplace_lat'] ?? '3.1390' }}" required>
+
+            {{-- Location 1: Workplace --}}
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:15px; margin-bottom:20px;">
+                <div style="font-weight:700; color:#1e293b; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+                    <span style="background:#3b82f6; color:#fff; border-radius:50%; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; font-size:12px;">1</span>
+                    Location 1 — Workplace
+                </div>
+                <div class="form-group" style="margin-bottom:10px;">
+                    <label class="form-label">Location Name</label>
+                    <input type="text" name="location_1_name" class="form-input" value="{{ $settings['location_1_name'] ?? 'Workplace' }}" required>
+                </div>
+                <div class="form-group" style="margin-bottom:10px;">
+                    <label class="form-label">Address Reference</label>
+                    <input type="text" name="location_1_address" class="form-input" value="{{ $settings['location_1_address'] ?? 'Shop Apartment, No. 20-1F (1), Jalan Orkid 4, Taman Orkid, 43200 Cheras, Selangor, Malaysia.' }}">
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+                    <div class="form-group">
+                        <label class="form-label">Latitude</label>
+                        <input type="text" name="location_1_lat" class="form-input" value="{{ $settings['location_1_lat'] ?? ($settings['workplace_lat'] ?? '3.0783092') }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Longitude</label>
+                        <input type="text" name="location_1_lng" class="form-input" value="{{ $settings['location_1_lng'] ?? ($settings['workplace_lng'] ?? '101.7664661') }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Radius (Meters)</label>
+                        <input type="number" name="location_1_radius" class="form-input" value="{{ $settings['location_1_radius'] ?? ($settings['workplace_radius'] ?? '500') }}" required>
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Workplace Longitude</label>
-                <input type="text" name="workplace_lng" class="form-input" value="{{ $settings['workplace_lng'] ?? '101.6869' }}" required>
+
+            {{-- Location 2: Home / Demo --}}
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:15px; margin-bottom:20px;">
+                <div style="font-weight:700; color:#1e293b; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+                    <span style="background:#10b981; color:#fff; border-radius:50%; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; font-size:12px;">2</span>
+                    Location 2 — Home / Demo
+                </div>
+                <div class="form-group" style="margin-bottom:10px;">
+                    <label class="form-label">Location Name</label>
+                    <input type="text" name="location_2_name" class="form-input" value="{{ $settings['location_2_name'] ?? 'Home / Demo' }}" required>
+                </div>
+                <div class="form-group" style="margin-bottom:10px;">
+                    <label class="form-label">Address Reference</label>
+                    <input type="text" name="location_2_address" class="form-input" value="{{ $settings['location_2_address'] ?? 'The Sky Residensi, Taman Shamelin Perkasa, 56100 Kuala Lumpur, Malaysia.' }}">
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+                    <div class="form-group">
+                        <label class="form-label">Latitude</label>
+                        <input type="text" name="location_2_lat" class="form-input" value="{{ $settings['location_2_lat'] ?? '3.1247527' }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Longitude</label>
+                        <input type="text" name="location_2_lng" class="form-input" value="{{ $settings['location_2_lng'] ?? '101.7374223' }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Radius (Meters)</label>
+                        <input type="number" name="location_2_radius" class="form-input" value="{{ $settings['location_2_radius'] ?? '500' }}" required>
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Allowed Radius (Meters)</label>
-                <input type="number" name="workplace_radius" class="form-input" value="{{ $settings['workplace_radius'] ?? '100' }}" required>
+
+            {{-- Location 3: College / Demo --}}
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:15px; margin-bottom:20px;">
+                <div style="font-weight:700; color:#1e293b; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+                    <span style="background:#8b5cf6; color:#fff; border-radius:50%; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; font-size:12px;">3</span>
+                    Location 3 — College / Demo
+                </div>
+                <div class="form-group" style="margin-bottom:10px;">
+                    <label class="form-label">Location Name</label>
+                    <input type="text" name="location_3_name" class="form-input" value="{{ $settings['location_3_name'] ?? 'College / Demo' }}" required>
+                </div>
+                <div class="form-group" style="margin-bottom:10px;">
+                    <label class="form-label">Address Reference</label>
+                    <input type="text" name="location_3_address" class="form-input" value="{{ $settings['location_3_address'] ?? 'Universiti Poly-Tech Malaysia (UPTM), Jalan 6/91, Taman Shamelin Perkasa, 56100 Kuala Lumpur, Wilayah Persekutuan Kuala Lumpur.' }}">
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+                    <div class="form-group">
+                        <label class="form-label">Latitude</label>
+                        <input type="text" name="location_3_lat" class="form-input" value="{{ $settings['location_3_lat'] ?? '3.1276441' }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Longitude</label>
+                        <input type="text" name="location_3_lng" class="form-input" value="{{ $settings['location_3_lng'] ?? '101.7373364' }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Radius (Meters)</label>
+                        <input type="number" name="location_3_radius" class="form-input" value="{{ $settings['location_3_radius'] ?? '500' }}" required>
+                    </div>
+                </div>
             </div>
-            <button class="btn btn-primary" type="submit">Save Geofence Settings</button>
+
+            <button class="btn btn-primary" type="submit">Save Allowed Geolocation Settings</button>
         </form>
     </div>
 

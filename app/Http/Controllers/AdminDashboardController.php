@@ -57,6 +57,14 @@ class AdminDashboardController extends Controller
         foreach ($data as $key => $value) {
             \App\Models\Setting::updateOrCreate(['key' => $key], ['value' => $value]);
         }
+
+        // Sync legacy workplace geofence keys with Location 1 for backward compatibility
+        if (isset($data['location_1_lat'])) {
+            \App\Models\Setting::updateOrCreate(['key' => 'workplace_lat'], ['value' => $data['location_1_lat']]);
+            \App\Models\Setting::updateOrCreate(['key' => 'workplace_lng'], ['value' => $data['location_1_lng']]);
+            \App\Models\Setting::updateOrCreate(['key' => 'workplace_radius'], ['value' => $data['location_1_radius'] ?? '500']);
+        }
+
         return back()->with('success', 'Settings updated successfully.');
     }
 }
