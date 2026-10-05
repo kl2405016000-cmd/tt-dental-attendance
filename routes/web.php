@@ -75,12 +75,14 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin/employees', [EmployeeController::class, 'index'])->name('employees.index');
     Route::get('/admin/employees/create', [EmployeeController::class, 'create'])->name('employees.create');
     Route::post('/admin/employees', [EmployeeController::class, 'store'])->name('employees.store');
+    Route::get('/admin/employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show');
     Route::get('/admin/employees/{employee}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
     Route::put('/admin/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
     Route::patch('/admin/employees/{employee}/toggle-status', [EmployeeController::class, 'toggleStatus'])->name('employees.toggle-status');
     Route::delete('/admin/employees/{employee}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
     Route::get('/employees', fn () => redirect()->route('employees.index'));
     Route::get('/employees/create', fn () => redirect()->route('employees.create'));
+    Route::get('/employees/{employee}', fn (\App\Models\Employee $employee) => redirect()->route('employees.show', $employee));
 
     // Attendance Management
     Route::get('/admin/attendance', [AttendanceController::class, 'index'])->name('attendance.index');

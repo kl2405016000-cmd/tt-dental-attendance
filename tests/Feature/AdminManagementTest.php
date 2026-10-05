@@ -236,4 +236,176 @@ class AdminManagementTest extends TestCase
         $resFace->assertStatus(200);
         $resFace->assertSee('Register Employee Biometric Face Profile');
     }
+
+    public function test_admin_employee_biodata_profile_view(): void
+    {
+        $admin = $this->createAdmin();
+
+        $employee = Employee::create([
+            'employee_id' => 'EMP-777',
+            'name' => 'Dr. Aiman',
+            'ic_passport_number' => '900101-14-1234',
+            'date_of_birth' => '1990-01-01',
+            'gender' => 'Male',
+            'position' => 'Dental Technician',
+            'department' => 'Crown & Bridge',
+            'employment_status' => 'Full-Time',
+            'date_joined' => '2023-01-15',
+            'email' => 'aiman@ttdental.com',
+            'phone' => '+601122334455',
+            'address' => 'No 12, Jalan Damai, KL',
+            'emergency_contact_name' => 'Nurul Huda',
+            'emergency_contact_relationship' => 'Spouse',
+            'emergency_contact_phone' => '+60198877665',
+            'emergency_contact_address' => 'Same as home',
+            'status' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('employees.show', $employee));
+        $response->assertStatus(200);
+        $response->assertSee('Staff Biodata Profile');
+        $response->assertSee('1. Personal Information');
+        $response->assertSee('2. Employment Information');
+        $response->assertSee('3. Emergency Contact');
+        $response->assertSee('4. System Information');
+        $response->assertSee('EMP-777');
+        $response->assertSee('900101-14-1234');
+        $response->assertSee('Nurul Huda');
+        $response->assertSee('Crown & Bridge');
+    }
+
+    public function test_admin_can_save_and_update_full_biodata_fields(): void
+    {
+        $admin = $this->createAdmin();
+
+        $response = $this->actingAs($admin)->post(route('employees.store'), [
+            'employee_id' => 'EMP-888',
+            'name' => 'Siti Aminah',
+            'ic_passport_number' => '980512-10-5432',
+            'date_of_birth' => '1998-05-12',
+            'gender' => 'Female',
+            'position' => 'CAD/CAM Technician',
+            'department' => 'CAD/CAM',
+            'employment_status' => 'Full-Time',
+            'date_joined' => '2024-03-01',
+            'email' => 'siti@ttdental.com',
+            'phone' => '+60171234567',
+            'address' => 'Apartment Orkid, Cheras',
+            'emergency_contact_name' => 'Mohd Amin',
+            'emergency_contact_relationship' => 'Father',
+            'emergency_contact_phone' => '+60129998877',
+            'emergency_contact_address' => 'Bangi, Selangor',
+            'status' => 1,
+        ]);
+
+        $response->assertRedirect(route('employees.index'));
+        $this->assertDatabaseHas('employees', [
+            'employee_id' => 'EMP-888',
+            'ic_passport_number' => '980512-10-5432',
+            'gender' => 'Female',
+            'emergency_contact_name' => 'Mohd Amin',
+        ]);
+
+        $emp = Employee::where('employee_id', 'EMP-888')->first();
+
+        // Update with custom position and department via Other option
+        $responseUpdate = $this->actingAs($admin)->put(route('employees.update', $emp), [
+            'employee_id' => 'EMP-888',
+            'name' => 'Siti Aminah Updated',
+            'ic_passport_number' => '980512-10-5432',
+            'date_of_birth' => '1998-05-12',
+            'gender' => 'Female',
+            'position' => 'Other',
+            'custom_position' => 'Lead Biomaterial Specialist',
+            'department' => 'Other',
+            'custom_department' => 'R&D Innovation',
+            'employment_status' => 'Contract',
+            'date_joined' => '2024-03-01',
+            'email' => 'siti.updated@ttdental.com',
+            'phone' => '+60171234567',
+            'address' => 'Updated Address',
+            'emergency_contact_name' => 'Mohd Amin',
+            'emergency_contact_relationship' => 'Father',
+            'emergency_contact_phone' => '+60129998877',
+            'status' => 1,
+        ]);
+
+        $responseUpdate->assertRedirect(route('employees.index'));
+        $this->assertDatabaseHas('employees', [
+            'employee_id' => 'EMP-888',
+            'position' => 'Lead Biomaterial Specialist',
+            'department' => 'R&D Innovation',
+            'employment_status' => 'Contract',
+        ]);
+    }
+
+    public function test_existing_legacy_employee_record_retains_data_and_profile_view(): void
+    {
+        $admin = $this->createAdmin();
+
+        $staffUser = User::factory()->create([
+            'name' => 'HARTINI',
+            'email' => 'tinih9554@gmail.com',
+            'role' => 'staff',
+        ]);
+
+        $employee = Employee::create([
+            'employee_id' => 'EMP005',
+            'name' => 'HARTINI',
+            'position' => 'DENTAL TECHNICIAN',
+            'department' => 'TECHNICIAN',
+            'employment_status' => 'Full-Time',
+            'email' => 'tinih9554@gmail.com',
+            'phone' => '0136146379',
+            'user_id' => $staffUser->id,
+            'status' => true,
+        ]);
+
+        // 1. Profile / details view
+        $responseShow = $this->actingAs($admin)->get(route('employees.show', $employee));
+        $responseShow->assertStatus(200);
+        $responseShow->assertSee('Staff Biodata Profile');
+        $responseShow->assertSee('EMP005');
+        $responseShow->assertSee('HARTINI');
+        $responseShow->assertSee('DENTAL TECHNICIAN');
+        $responseShow->assertSee('TECHNICIAN');
+        $responseShow->assertSee('tinih9554@gmail.com');
+        $responseShow->assertSee('Staff');
+        // Ensure password is NEVER exposed
+        $responseShow->assertDontSee($staffUser->password);
+
+        // 2. Edit view contains legacy values in dropdowns
+        $responseEdit = $this->actingAs($admin)->get(route('employees.edit', $employee));
+        $responseEdit->assertStatus(200);
+        $responseEdit->assertSee('Edit Employee: HARTINI');
+        $responseEdit->assertSee('DENTAL TECHNICIAN');
+        $responseEdit->assertSee('TECHNICIAN');
+        $responseEdit->assertDontSee($staffUser->password);
+
+        // 3. Updating other fields preserves legacy values
+        $responseUpdate = $this->actingAs($admin)->put(route('employees.update', $employee), [
+            'employee_id' => 'EMP005',
+            'name' => 'HARTINI BINTI ISMAIL',
+            'position' => 'DENTAL TECHNICIAN',
+            'department' => 'TECHNICIAN',
+            'employment_status' => 'Full-Time',
+            'ic_passport_number' => '950505-14-1234',
+            'gender' => 'Female',
+            'emergency_contact_name' => 'Ismail',
+            'emergency_contact_relationship' => 'Father',
+            'emergency_contact_phone' => '0123456789',
+            'status' => 1,
+        ]);
+
+        $responseUpdate->assertRedirect(route('employees.index'));
+        $this->assertDatabaseHas('employees', [
+            'employee_id' => 'EMP005',
+            'name' => 'HARTINI BINTI ISMAIL',
+            'position' => 'DENTAL TECHNICIAN',
+            'department' => 'TECHNICIAN',
+            'ic_passport_number' => '950505-14-1234',
+            'gender' => 'Female',
+            'user_id' => $staffUser->id,
+        ]);
+    }
 }

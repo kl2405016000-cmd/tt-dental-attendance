@@ -81,11 +81,11 @@
                     <tr>
                         <td>
                             <div style="display:flex; align-items:center; gap:10px;">
-                                <div style="width:38px; height:38px; border-radius:10px; overflow:hidden; flex-shrink:0; background:linear-gradient(135deg,#4f46e5,#7c3aed);">
+                                <a href="{{ route('employees.show', $employee) }}" style="width:38px; height:38px; border-radius:10px; overflow:hidden; flex-shrink:0; background:linear-gradient(135deg,#4f46e5,#7c3aed); display:block;">
                                     <img src="{{ $employee->profile_photo_url }}" alt="{{ $employee->name }}" style="width:100%; height:100%; object-fit:cover;" onerror="this.style.display='none'; this.parentElement.style.display='flex'; this.parentElement.style.alignItems='center'; this.parentElement.style.justifyContent='center'; this.parentElement.style.color='white'; this.parentElement.style.fontWeight='800'; this.parentElement.style.fontSize='14px'; this.parentElement.textContent='{{ strtoupper(substr($employee->name, 0, 1)) }}';">
-                                </div>
+                                </a>
                                 <div>
-                                    <div style="font-weight:700; color:var(--text-head); font-size:13.5px;">{{ $employee->name }}</div>
+                                    <a href="{{ route('employees.show', $employee) }}" style="font-weight:700; color:var(--text-head); font-size:13.5px; text-decoration:none; display:inline-block;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--text-head)'">{{ $employee->name }}</a>
                                     <div style="font-size:11.5px; color:var(--primary); font-weight:600;">{{ $employee->employee_id }}</div>
                                 </div>
                             </div>
@@ -115,6 +115,11 @@
                         </td>
                         <td>
                             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                <a href="{{ route('employees.show', $employee) }}" class="btn btn-outline btn-sm" title="View Biodata Profile">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    View
+                                </a>
+
                                 <a href="{{ route('employees.edit', $employee->id) }}" class="btn btn-outline btn-sm">
                                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                     Edit

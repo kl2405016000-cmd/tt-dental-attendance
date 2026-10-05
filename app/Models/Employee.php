@@ -12,11 +12,20 @@ class Employee extends Model
     protected $fillable = [
         'employee_id',
         'name',
+        'ic_passport_number',
+        'date_of_birth',
+        'gender',
         'position',
         'email',
         'phone',
+        'address',
         'department',
         'employment_status',
+        'date_joined',
+        'emergency_contact_name',
+        'emergency_contact_relationship',
+        'emergency_contact_phone',
+        'emergency_contact_address',
         'profile_photo',
         'user_id',
         'face_data',
@@ -25,6 +34,8 @@ class Employee extends Model
 
     protected $casts = [
         'status' => 'boolean',
+        'date_of_birth' => 'date',
+        'date_joined' => 'date',
     ];
 
     public function user(): BelongsTo
@@ -59,6 +70,10 @@ class Employee extends Model
 
     public function getHasFaceRegisteredAttribute(): bool
     {
+        if ($this->relationLoaded('faceRegistration')) {
+            return $this->faceRegistration !== null;
+        }
+
         return $this->faceRegistration()->exists();
     }
 

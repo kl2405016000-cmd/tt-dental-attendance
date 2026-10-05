@@ -11,13 +11,22 @@ class EmployeeController extends Controller
 {
     public function index()
     {
-        $employees = Employee::orderBy('name')->get();
+        $employees = Employee::with(['faceRegistration', 'user'])->orderBy('name')->get();
         $attendances = Attendance::with('employee')
             ->orderByDesc('attendance_date')
             ->orderByDesc('clock_in')
             ->get();
 
         return view('employees.index', compact('employees', 'attendances'));
+    }
+
+    public function show(Employee $employee)
+    {
+        $employee->load(['user', 'faceRegistration', 'attendances' => function ($q) {
+            $q->orderByDesc('attendance_date')->orderByDesc('clock_in')->limit(10);
+        }]);
+
+        return view('employees.show', compact('employee'));
     }
 
     public function create()
@@ -30,14 +39,35 @@ class EmployeeController extends Controller
         $validated = $request->validate([
             'employee_id' => 'required|string|unique:employees,employee_id',
             'name' => 'required|string|max:255',
+            'ic_passport_number' => 'nullable|string|max:100',
+            'date_of_birth' => 'nullable|date',
+            'gender' => 'nullable|string|max:50',
             'position' => 'nullable|string|max:255',
+            'custom_position' => 'nullable|string|max:255',
             'department' => 'nullable|string|max:255',
+            'custom_department' => 'nullable|string|max:255',
             'employment_status' => 'nullable|string|max:255',
+            'date_joined' => 'nullable|date',
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:50',
+            'address' => 'nullable|string|max:1000',
+            'emergency_contact_name' => 'nullable|string|max:255',
+            'emergency_contact_relationship' => 'nullable|string|max:100',
+            'emergency_contact_phone' => 'nullable|string|max:50',
+            'emergency_contact_address' => 'nullable|string|max:1000',
             'profile_photo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'status' => 'nullable|boolean',
         ]);
+
+        if (($validated['position'] ?? null) === 'Other' && !empty($validated['custom_position'])) {
+            $validated['position'] = $validated['custom_position'];
+        }
+        unset($validated['custom_position']);
+
+        if (($validated['department'] ?? null) === 'Other' && !empty($validated['custom_department'])) {
+            $validated['department'] = $validated['custom_department'];
+        }
+        unset($validated['custom_department']);
 
         if ($request->hasFile('profile_photo')) {
             $validated['profile_photo'] = $request->file('profile_photo')->store('profile-photos', 'public');
@@ -76,14 +106,40 @@ class EmployeeController extends Controller
         $validated = $request->validate([
             'employee_id' => 'required|string|unique:employees,employee_id,' . $employee->id,
             'name' => 'required|string|max:255',
+            'ic_passport_number' => 'nullable|string|max:100',
+            'date_of_birth' => 'nullable|date',
+            'gender' => 'nullable|string|max:50',
             'position' => 'nullable|string|max:255',
+            'custom_position' => 'nullable|string|max:255',
             'department' => 'nullable|string|max:255',
+            'custom_department' => 'nullable|string|max:255',
             'employment_status' => 'nullable|string|max:255',
-            'email' => 'nullable|email|max:255',
+            'date_joined' => 'nullable|date',
+            'email' => [
+                'nullable',
+                'email',
+                'max:255',
+                $employee->user_id ? \Illuminate\Validation\Rule::unique('users', 'email')->ignore($employee->user_id) : '',
+            ],
             'phone' => 'nullable|string|max:50',
+            'address' => 'nullable|string|max:1000',
+            'emergency_contact_name' => 'nullable|string|max:255',
+            'emergency_contact_relationship' => 'nullable|string|max:100',
+            'emergency_contact_phone' => 'nullable|string|max:50',
+            'emergency_contact_address' => 'nullable|string|max:1000',
             'profile_photo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'status' => 'nullable|boolean',
         ]);
+
+        if (($validated['position'] ?? null) === 'Other' && !empty($validated['custom_position'])) {
+            $validated['position'] = $validated['custom_position'];
+        }
+        unset($validated['custom_position']);
+
+        if (($validated['department'] ?? null) === 'Other' && !empty($validated['custom_department'])) {
+            $validated['department'] = $validated['custom_department'];
+        }
+        unset($validated['custom_department']);
 
         if ($request->hasFile('profile_photo')) {
             if ($employee->profile_photo && Storage::disk('public')->exists($employee->profile_photo)) {
@@ -119,11 +175,12 @@ class EmployeeController extends Controller
             ]);
         }
 
-        if ($employee->user && isset($validated['email']) && $validated['email'] !== $employee->user->email) {
-            $employee->user->update([
-                'name' => $validated['name'],
-                'email' => $validated['email'],
-            ]);
+        if ($employee->user) {
+            $userUpdates = ['name' => $validated['name']];
+            if (!empty($validated['email']) && $validated['email'] !== $employee->user->email) {
+                $userUpdates['email'] = $validated['email'];
+            }
+            $employee->user->update($userUpdates);
         }
 
         $employee->update($validated);
