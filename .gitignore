@@ -30,7 +30,14 @@
 /storage/pail
 /storage/app/public/faces/*
 /storage/app/public/profile-photos/*
-/storage/framework/*
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/testing/*
+/storage/framework/views/*
+!/storage/framework/cache/.gitignore
+!/storage/framework/sessions/.gitignore
+!/storage/framework/testing/.gitignore
+!/storage/framework/views/.gitignore
 /storage/logs/*
 /database/database.sqlite
 
