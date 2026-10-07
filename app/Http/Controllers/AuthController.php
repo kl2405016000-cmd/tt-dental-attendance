@@ -25,9 +25,10 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         if (User::count() === 0) {
+            $adminEmail = config('mail.mailers.admin_smtp.username') ?: 'ttdentalattendancettdental@gmail.com';
             User::create([
                 'name' => 'Administrator',
-                'email' => 'admin@ttdental.com',
+                'email' => $adminEmail,
                 'password' => Hash::make('admin123'),
                 'role' => 'admin',
             ]);
@@ -51,7 +52,7 @@ class AuthController extends Controller
         $emailInput = Str::lower(trim($request->string('email')->toString()));
         $adminConfigEmail = Str::lower(trim((string) config('mail.mailers.admin_smtp.username')));
         $adminUser = User::where('role', 'admin')->first();
-        if ($adminUser && ($emailInput === 'admin@ttdental.com' || ($adminConfigEmail && $emailInput === $adminConfigEmail))) {
+        if ($adminUser && ($emailInput === 'admin@ttdental.com' || ($adminConfigEmail && $emailInput === $adminConfigEmail) || $emailInput === Str::lower($adminUser->email))) {
             if (Hash::check($request->string('password')->toString(), $adminUser->password)) {
                 Auth::login($adminUser, $request->boolean('remember'));
                 $request->session()->regenerate();
@@ -131,7 +132,12 @@ class AuthController extends Controller
 
         try {
             if ($isAdmin && config('mail.mailers.admin_smtp.username')) {
-                Mail::mailer('admin_smtp')->to($recipientEmail)->send($mailable);
+                try {
+                    Mail::mailer('admin_smtp')->to($recipientEmail)->send($mailable);
+                } catch (\Throwable $adminEx) {
+                    \Illuminate\Support\Facades\Log::warning('admin_smtp mailer failed for user ID ' . $user->id . ', falling back to default mailer: ' . $adminEx->getMessage());
+                    Mail::to($recipientEmail)->send($mailable);
+                }
             } else {
                 Mail::to($recipientEmail)->send($mailable);
             }

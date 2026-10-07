@@ -59,6 +59,10 @@ return [
             'password' => env('ADMIN_MAIL_PASSWORD', env('ADMIN_MAILER_PASSWORD')),
             'timeout' => null,
             'local_domain' => env('ADMIN_MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+            'from' => [
+                'address' => env('ADMIN_MAIL_FROM_ADDRESS', env('ADMIN_MAIL_USERNAME')),
+                'name' => env('ADMIN_MAIL_FROM_NAME', 'TT Dental Lab (Admin Portal)'),
+            ],
         ],
 
         'ses' => [
